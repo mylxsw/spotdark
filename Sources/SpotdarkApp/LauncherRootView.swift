@@ -5,8 +5,6 @@ import SpotdarkCore
 struct LauncherRootView: View {
     @Bindable var store: LauncherStore
 
-    @FocusState private var isSearchFocused: Bool
-
     var body: some View {
         ZStack(alignment: .top) {
             // Base glass material.
@@ -35,10 +33,6 @@ struct LauncherRootView: View {
         .frame(width: LauncherPanelMetrics.width)
         .frame(maxHeight: .infinity, alignment: .top)
         .clipShape(RoundedRectangle(cornerRadius: LauncherPanelMetrics.cornerRadius, style: .continuous))
-        .onChange(of: store.focusRequestID) {
-            // Focus is requested by the panel controller when shown.
-            isSearchFocused = true
-        }
         // Global keyboard behavior:
         // - Up/Down: navigate results
         // - Return: open selected item
@@ -52,15 +46,10 @@ struct LauncherRootView: View {
             default:
                 break
             }
-            isSearchFocused = true
         }
         .background(defaultActionButton)
         .onExitCommand {
             store.hide()
-        }
-        .onAppear {
-            // Make sure the list does not steal focus.
-            isSearchFocused = true
         }
     }
 
@@ -69,16 +58,24 @@ struct LauncherRootView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField(LauncherStrings.searchPlaceholder, text: $store.query)
-                .textFieldStyle(.plain)
-                .font(.system(size: 20, weight: .semibold, design: .default))
-                .focused($isSearchFocused)
-                .onSubmit {
+            LauncherSearchField(
+                text: $store.query,
+                placeholder: LauncherStrings.searchPlaceholder,
+                focusRequestID: store.focusRequestID,
+                onMoveSelection: { delta in
+                    store.moveSelection(delta: delta)
+                },
+                onSubmit: {
                     store.performSelectedAction()
+                },
+                onExit: {
+                    store.hide()
                 }
+            )
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
+        .frame(height: LauncherPanelMetrics.searchFieldHeight)
         .background(
             RoundedRectangle(cornerRadius: LauncherPanelMetrics.searchFieldCornerRadius, style: .continuous)
                 .fill(.thinMaterial)
@@ -150,9 +147,9 @@ struct LauncherRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeOut(duration: 0.2), value: store.isInitialIndexing)
-        .animation(.easeOut(duration: 0.16), value: store.isShowingResults)
-        .animation(.easeOut(duration: 0.16), value: store.isShowingNoResultsState)
+        .animation(.easeOut(duration: 0.12), value: store.isInitialIndexing)
+        .animation(.easeOut(duration: 0.08), value: store.isShowingResults)
+        .animation(.easeOut(duration: 0.08), value: store.isShowingNoResultsState)
     }
 
     @ViewBuilder

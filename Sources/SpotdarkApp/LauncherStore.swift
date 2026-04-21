@@ -164,7 +164,7 @@ final class LauncherStore {
         tasks.setSearchTask(Task { [weak self] in
             guard let self else { return }
             if !immediate {
-                try? await Task.sleep(nanoseconds: 80_000_000) // 80ms debounce
+                try? await Task.sleep(nanoseconds: LauncherPanelMetrics.searchDebounceNanoseconds)
             }
             await MainActor.run {
                 self.performSearchNow()

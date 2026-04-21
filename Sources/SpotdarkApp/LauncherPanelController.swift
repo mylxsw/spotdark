@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 import SpotdarkCore
 
@@ -92,8 +93,8 @@ final class LauncherPanelController: NSObject {
         guard let screen = NSScreen.main else { return }
         let frame = screen.frame
         let origin = NSPoint(
-            x: frame.midX - panel.frame.width / 2,
-            y: frame.midY - panel.frame.height / 2
+            x: round(frame.midX - panel.frame.width / 2),
+            y: round(frame.midY - panel.frame.height / 2)
         )
         panel.setFrameOrigin(origin)
     }
@@ -123,18 +124,22 @@ final class LauncherPanelController: NSObject {
         guard abs(currentFrame.height - height) > 0.5 else { return }
 
         let newFrame = NSRect(
-            x: currentFrame.origin.x,
-            y: currentFrame.maxY - height,
+            x: round(currentFrame.origin.x),
+            y: round(currentFrame.maxY - height),
             width: LauncherPanelMetrics.width,
             height: height
-        )
+        ).integral
 
         guard animated, panel.isVisible else {
             panel.setFrame(newFrame, display: true)
             return
         }
 
-        panel.setFrame(newFrame, display: true, animate: true)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = LauncherPanelMetrics.panelAnimationDuration
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().setFrame(newFrame, display: true)
+        }
     }
 }
 
