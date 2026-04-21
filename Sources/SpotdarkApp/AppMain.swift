@@ -10,6 +10,7 @@ final class LauncherCoordinator {
 
     private let panelController: LauncherPanelController
     private let errorFeedbackController: ErrorFeedbackPanelController
+    private let settingsController = SettingsWindowController()
 
     private init() {
         panelController = LauncherPanelController()
@@ -37,12 +38,8 @@ final class LauncherCoordinator {
     }
 
     func showSettings(pane: SettingsPane? = nil) {
-        if let pane {
-            SettingsStore.shared.selectedPane = pane
-        }
-
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        panelController.hide()
+        settingsController.show(pane: pane)
     }
 }
 
@@ -105,11 +102,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem?.button?.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Spotdark")
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: SettingsStrings.showLauncherMenuItemTitle, action: #selector(showLauncherFromMenu), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: SettingsStrings.settingsMenuItemTitle, action: #selector(showSettingsFromMenu), keyEquivalent: ""))
+        menu.addItem(makeMenuItem(title: SettingsStrings.showLauncherMenuItemTitle, action: #selector(showLauncherFromMenu)))
+        menu.addItem(makeMenuItem(title: SettingsStrings.settingsMenuItemTitle, action: #selector(showSettingsFromMenu)))
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: SettingsStrings.quitMenuItemTitle, action: #selector(quit), keyEquivalent: ""))
+        menu.addItem(makeMenuItem(title: SettingsStrings.quitMenuItemTitle, action: #selector(quit)))
         statusItem?.menu = menu
+    }
+
+    private func makeMenuItem(title: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
     }
 
     private func registerLauncherHotKey(_ hotKey: HotKey) throws {
