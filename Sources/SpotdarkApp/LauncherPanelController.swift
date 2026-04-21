@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import RaycastCore
+import SpotdarkCore
 
 /// A borderless panel that can become key/main to accept text input.
 final class LauncherPanel: NSPanel {

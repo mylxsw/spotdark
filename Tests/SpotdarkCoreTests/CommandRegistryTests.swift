@@ -1,5 +1,5 @@
 import XCTest
-@testable import RaycastCore
+@testable import SpotdarkCore
 
 final class CommandRegistryTests: XCTestCase {
     func testRegisterReplacesSameId() {

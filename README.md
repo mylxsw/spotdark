@@ -1,6 +1,6 @@
-# RaycastLike (Starter)
+# Spotdark
 
-A minimal macOS launcher prototype inspired by Raycast.
+A minimal macOS launcher prototype.
 
 ## What this starter provides
 
@@ -34,19 +34,19 @@ If you need more coverage (e.g. Setapp or custom install paths), add directories
 
 This repo is structured as a Swift Package:
 
-- `RaycastCore` (library): search engine, models, app provider, hotkey abstraction
-- `RaycastLikeApp` (executable): AppKit UI and app entry point
+- `SpotdarkCore` (library): search engine, models, app provider, hotkey abstraction
+- `SpotdarkApp` (executable): AppKit UI and app entry point
 
 In Xcode:
 
-1. File → Open… → select the `RaycastLike` folder
-2. Select the `RaycastLikeApp` scheme
+1. File → Open… → select the `Spotdark` folder
+2. Select the `SpotdarkApp` scheme
 3. Run
 
 Or via SwiftPM:
 
 ```bash
-swift run RaycastLikeApp
+swift run SpotdarkApp
 ```
 
 ## Testing

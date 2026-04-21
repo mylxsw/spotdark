@@ -2,26 +2,26 @@
 import PackageDescription
 
 let package = Package(
-    name: "RaycastLike",
+    name: "Spotdark",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .library(name: "RaycastCore", targets: ["RaycastCore"]),
-        .executable(name: "RaycastLikeApp", targets: ["RaycastLikeApp"])
+        .library(name: "SpotdarkCore", targets: ["SpotdarkCore"]),
+        .executable(name: "SpotdarkApp", targets: ["SpotdarkApp"])
     ],
     targets: [
         .target(
-            name: "RaycastCore",
+            name: "SpotdarkCore",
             dependencies: []
         ),
         .executableTarget(
-            name: "RaycastLikeApp",
-            dependencies: ["RaycastCore"]
+            name: "SpotdarkApp",
+            dependencies: ["SpotdarkCore"]
         ),
         .testTarget(
-            name: "RaycastCoreTests",
-            dependencies: ["RaycastCore"]
+            name: "SpotdarkCoreTests",
+            dependencies: ["SpotdarkCore"]
         )
     ]
 )

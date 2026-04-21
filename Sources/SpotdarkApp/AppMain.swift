@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import RaycastCore
+import SpotdarkCore
 
 /// A global singleton that owns the launcher panel.
 @MainActor
@@ -101,7 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct RaycastLikeApp: App {
+struct SpotdarkApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {

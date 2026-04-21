@@ -1,5 +1,5 @@
 import XCTest
-@testable import RaycastCore
+@testable import SpotdarkCore
 
 final class LauncherViewModelTests: XCTestCase {
     func testUpdateQueryUpdatesResults() {

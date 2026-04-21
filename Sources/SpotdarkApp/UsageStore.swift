@@ -1,5 +1,5 @@
 import Foundation
-import RaycastCore
+import SpotdarkCore
 
 /// Persists simple usage signals for ranking.
 ///

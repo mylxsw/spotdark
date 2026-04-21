@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import RaycastCore
+import SpotdarkCore
 
 @Observable
 @MainActor

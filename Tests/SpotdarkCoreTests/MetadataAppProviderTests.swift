@@ -1,5 +1,5 @@
 import XCTest
-@testable import RaycastCore
+@testable import SpotdarkCore
 
 final class MetadataAppProviderTests: XCTestCase {
     func testMetadataAppProviderBuildsItemsFromURLs() throws {
