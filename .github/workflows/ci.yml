@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Build
+        run: swift build -c release
+
+      - name: Test with coverage
+        run: |
+          swift test \
+            --enable-code-coverage \
+            2>&1 | tee test-output.txt
+
+      - name: Report coverage
+        run: |
+          BINARY=$(swift build --show-bin-path 2>/dev/null)/SpotdarkCoreTests.xctest/Contents/MacOS/SpotdarkCoreTests
+          PROFDATA=$(find .build -name "*.profdata" 2>/dev/null | head -1)
+          if [ -n "$PROFDATA" ] && [ -f "$BINARY" ]; then
+            xcrun llvm-cov report "$BINARY" \
+              -instr-profile="$PROFDATA" \
+              --ignore-filename-regex=".build|Tests" \
+              || true
+          fi
