@@ -6,12 +6,16 @@ import SpotdarkCore
 @MainActor
 final class LauncherStore {
     var query: String = "" {
-        didSet { scheduleSearch() }
+        didSet {
+            handlePresentationQueryChange(from: oldValue, to: query)
+            scheduleSearch()
+        }
     }
 
     private(set) var results: [SearchItem] = []
     private(set) var trimmedQuery: String = ""
     private(set) var isInitialIndexing: Bool = true
+    private(set) var isSearchPending: Bool = false
 
     /// Selection index for the results list.
     ///
@@ -24,16 +28,26 @@ final class LauncherStore {
     private var engine: SearchEngine?
 
     private let tasks = TaskBox()
+    private var lastPreferredPanelHeight = LauncherPanelMetrics.collapsedHeight
 
     // Focus requests are bridged via a counter.
     private(set) var focusRequestID: Int = 0
+    var onPanelHeightChange: ((CGFloat, Bool) -> Void)?
 
     var isShowingResults: Bool {
         !results.isEmpty
     }
 
     var isShowingNoResultsState: Bool {
-        !trimmedQuery.isEmpty && results.isEmpty
+        isShowingExpandedContent && !isSearchPending && !isInitialIndexing && results.isEmpty
+    }
+
+    var isShowingExpandedContent: Bool {
+        !liveTrimmedQuery.isEmpty
+    }
+
+    var preferredPanelHeight: CGFloat {
+        isShowingExpandedContent ? LauncherPanelMetrics.expandedHeight : LauncherPanelMetrics.collapsedHeight
     }
 
     init(
@@ -52,6 +66,17 @@ final class LauncherStore {
 
     func requestFocus() {
         focusRequestID += 1
+    }
+
+    func prepareForPresentation() {
+        tasks.cancelSearchTask()
+        query = ""
+        trimmedQuery = ""
+        results = []
+        isSearchPending = false
+        selectedIndex = 0
+        notifyPanelHeightChange(force: true, animated: false)
+        requestFocus()
     }
 
     func select(index: Int) {
@@ -148,9 +173,11 @@ final class LauncherStore {
     }
 
     private func performSearchNow() {
-        trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        trimmedQuery = liveTrimmedQuery
         results = engine?.search(query: trimmedQuery) ?? []
+        isSearchPending = false
         selectedIndex = clampIndex(selectedIndex)
+        notifyPanelHeightChange(animated: true)
     }
 
     private func clampIndex(_ index: Int) -> Int {
@@ -167,6 +194,31 @@ final class LauncherStore {
         default:
             break
         }
+    }
+
+    private var liveTrimmedQuery: String {
+        query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func handlePresentationQueryChange(from oldValue: String, to newValue: String) {
+        let oldTrimmedValue = oldValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newTrimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if newTrimmedValue.isEmpty {
+            isSearchPending = false
+        } else {
+            isSearchPending = true
+        }
+
+        guard oldTrimmedValue.isEmpty != newTrimmedValue.isEmpty else { return }
+        notifyPanelHeightChange(animated: true)
+    }
+
+    private func notifyPanelHeightChange(force: Bool = false, animated: Bool) {
+        let preferredHeight = preferredPanelHeight
+        guard force || lastPreferredPanelHeight != preferredHeight else { return }
+        lastPreferredPanelHeight = preferredHeight
+        onPanelHeightChange?(preferredHeight, animated)
     }
 }
 
@@ -196,6 +248,13 @@ private final class TaskBox {
         indexTask?.cancel()
         searchTask?.cancel()
         indexTask = nil
+        searchTask = nil
+    }
+
+    func cancelSearchTask() {
+        lock.lock()
+        defer { lock.unlock() }
+        searchTask?.cancel()
         searchTask = nil
     }
 }

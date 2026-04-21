@@ -36,7 +36,12 @@ final class LauncherPanelController: NSObject {
         let hosting = NSHostingController(rootView: rootView)
 
         panel = LauncherPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 420),
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: LauncherPanelMetrics.width,
+                height: LauncherPanelMetrics.collapsedHeight
+            ),
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -50,6 +55,7 @@ final class LauncherPanelController: NSObject {
         panel.hasShadow = true
         panel.hidesOnDeactivate = true
         panel.isMovableByWindowBackground = true
+        panel.animationBehavior = .utilityWindow
 
         if #available(macOS 13.0, *) {
             panel.toolbarStyle = .unifiedCompact
@@ -64,18 +70,22 @@ final class LauncherPanelController: NSObject {
         super.init()
 
         panel.delegate = self
+        store.onPanelHeightChange = { [weak self] height, animated in
+            self?.updatePanelHeight(height, animated: animated)
+        }
+        updatePanelHeight(store.preferredPanelHeight, animated: false)
         centerOnScreen()
     }
 
     func showCenteredAndFocus() {
-        if SettingsStore.shared.remembersPanelPosition, let savedOrigin = restoredPanelOrigin() {
+        store.prepareForPresentation()
+        if SettingsStore.shared.remembersPanelPosition, let savedOrigin = restoredPanelOrigin(for: store.preferredPanelHeight) {
             panel.setFrameOrigin(savedOrigin)
         } else {
             centerOnScreen()
         }
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
-        store.requestFocus()
     }
 
     private func centerOnScreen() {
@@ -88,10 +98,17 @@ final class LauncherPanelController: NSObject {
         panel.setFrameOrigin(origin)
     }
 
-    private func restoredPanelOrigin() -> NSPoint? {
+    private func restoredPanelOrigin(for height: CGFloat) -> NSPoint? {
         guard let data = UserDefaults.standard.dictionary(forKey: savedPanelOriginKey),
-              let x = data["x"] as? Double,
-              let y = data["y"] as? Double else {
+              let x = data["x"] as? Double else {
+            return nil
+        }
+
+        if let top = data["top"] as? Double {
+            return NSPoint(x: x, y: top - height)
+        }
+
+        guard let y = data["y"] as? Double else {
             return nil
         }
         return NSPoint(x: x, y: y)
@@ -100,15 +117,34 @@ final class LauncherPanelController: NSObject {
     func hide() {
         panel.orderOut(nil)
     }
+
+    private func updatePanelHeight(_ height: CGFloat, animated: Bool) {
+        let currentFrame = panel.frame
+        guard abs(currentFrame.height - height) > 0.5 else { return }
+
+        let newFrame = NSRect(
+            x: currentFrame.origin.x,
+            y: currentFrame.maxY - height,
+            width: LauncherPanelMetrics.width,
+            height: height
+        )
+
+        guard animated, panel.isVisible else {
+            panel.setFrame(newFrame, display: true)
+            return
+        }
+
+        panel.setFrame(newFrame, display: true, animate: true)
+    }
 }
 
 extension LauncherPanelController: NSWindowDelegate {
     nonisolated func windowDidMove(_ notification: Notification) {
         Task { @MainActor in
             guard SettingsStore.shared.remembersPanelPosition else { return }
-            let origin = panel.frame.origin
+            let frame = panel.frame
             UserDefaults.standard.set(
-                ["x": origin.x, "y": origin.y],
+                ["x": frame.origin.x, "top": frame.maxY],
                 forKey: savedPanelOriginKey
             )
         }

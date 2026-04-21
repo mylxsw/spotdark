@@ -8,22 +8,33 @@ struct LauncherRootView: View {
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             // Base glass material.
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: LauncherPanelMetrics.cornerRadius, style: .continuous)
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: LauncherPanelMetrics.cornerRadius, style: .continuous)
                         .strokeBorder(.white.opacity(0.18), lineWidth: 1)
                 )
 
-            VStack(spacing: 12) {
+            VStack(spacing: store.isShowingExpandedContent ? LauncherPanelMetrics.contentSpacing : 0) {
                 searchBar
-                resultsList
+                if store.isShowingExpandedContent {
+                    resultsList
+                        .transition(
+                            .asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .top)),
+                                removal: .opacity
+                            )
+                        )
+                }
             }
-            .padding(16)
+            .padding(LauncherPanelMetrics.contentPadding)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(width: 720, height: 420)
+        .frame(width: LauncherPanelMetrics.width)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .clipShape(RoundedRectangle(cornerRadius: LauncherPanelMetrics.cornerRadius, style: .continuous))
         .onChange(of: store.focusRequestID) {
             // Focus is requested by the panel controller when shown.
             isSearchFocused = true
@@ -69,10 +80,10 @@ struct LauncherRootView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: LauncherPanelMetrics.searchFieldCornerRadius, style: .continuous)
                 .fill(.thinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: LauncherPanelMetrics.searchFieldCornerRadius, style: .continuous)
                         .strokeBorder(.white.opacity(0.12), lineWidth: 1)
                 )
         )
@@ -94,46 +105,51 @@ struct LauncherRootView: View {
         Group {
             if store.isInitialIndexing {
                 LauncherLoadingStateView()
-                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    .transition(.opacity)
             } else if store.isShowingResults {
                 ScrollViewReader { proxy in
-                    List {
-                        ForEach(Array(store.results.enumerated()), id: \.offset) { index, item in
-                            LauncherRowView(item: item, query: store.trimmedQuery)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10))
-                                .listRowBackground(rowBackground(isSelected: store.selectedIndex == index))
-                                .onTapGesture {
+                    ScrollView {
+                        LazyVStack(spacing: 4) {
+                            ForEach(Array(store.results.enumerated()), id: \.offset) { index, item in
+                                Button {
                                     store.select(index: index)
                                     store.performSelectedAction()
+                                } label: {
+                                    LauncherRowView(item: item, query: store.trimmedQuery)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(rowBackground(isSelected: store.selectedIndex == index))
                                 }
+                                .buttonStyle(.plain)
                                 .id(index)
+                            }
                         }
+                        .padding(.vertical, 2)
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .onChange(of: store.selectedIndex) {
-                        withAnimation(.easeOut(duration: 0.08)) {
+                        withAnimation(.easeOut(duration: 0.12)) {
                             proxy.scrollTo(store.selectedIndex, anchor: .center)
                         }
                     }
                 }
-                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                .transition(.opacity)
             } else if store.isShowingNoResultsState {
                 LauncherEmptyStateView(
                     systemImage: "exclamationmark.magnifyingglass",
                     title: LauncherStrings.noResultsTitle,
                     message: String(
                         format: LauncherStrings.noResultsMessageTemplate,
-                        store.trimmedQuery
+                        store.query.trimmingCharacters(in: .whitespacesAndNewlines)
                     ),
                     hint: LauncherStrings.noResultsHint
                 )
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                .transition(.opacity)
             } else {
                 Color.clear
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.easeOut(duration: 0.2), value: store.isInitialIndexing)
         .animation(.easeOut(duration: 0.16), value: store.isShowingResults)
         .animation(.easeOut(duration: 0.16), value: store.isShowingNoResultsState)
