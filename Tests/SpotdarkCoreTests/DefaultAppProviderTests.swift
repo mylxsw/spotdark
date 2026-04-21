@@ -41,6 +41,64 @@ final class DefaultAppProviderTests: XCTestCase {
         XCTAssertTrue(apps.isEmpty)
     }
 
+    func testFetchApplicationsUsesDisplayNameOverBundleName() throws {
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fm.removeItem(at: base) }
+
+        let appURL = base.appendingPathComponent("MyApp.app", isDirectory: true)
+        try fm.createDirectory(at: appURL.appendingPathComponent("Contents"), withIntermediateDirectories: true)
+        let plist: [String: Any] = [
+            "CFBundleDisplayName": "My Display Name",
+            "CFBundleName": "MyApp",
+            "CFBundleIdentifier": "com.test.myapp"
+        ]
+        let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+        try data.write(to: appURL.appendingPathComponent("Contents/Info.plist"))
+
+        let provider = DefaultAppProvider(fileManager: fm, appDirectories: [base], maxDepth: 0)
+        let apps = try provider.fetchApplications()
+
+        XCTAssertEqual(apps.first?.name, "My Display Name")
+    }
+
+    func testFetchApplicationsFallsBackToFolderNameWhenNoPlist() throws {
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fm.removeItem(at: base) }
+
+        let appURL = base.appendingPathComponent("NoPlist.app", isDirectory: true)
+        try fm.createDirectory(at: appURL, withIntermediateDirectories: true)
+
+        let provider = DefaultAppProvider(fileManager: fm, appDirectories: [base], maxDepth: 0)
+        let apps = try provider.fetchApplications()
+
+        XCTAssertEqual(apps.first?.name, "NoPlist")
+        XCTAssertNil(apps.first?.bundleIdentifier)
+    }
+
+    func testFetchApplicationsDeduplicatesSameURL() throws {
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? fm.removeItem(at: base) }
+
+        let appURL = base.appendingPathComponent("DuplicateApp.app", isDirectory: true)
+        try createFakeAppBundle(at: appURL, bundleName: "DuplicateApp")
+
+        // Pass the same directory twice to trigger the seenURLs deduplication path.
+        let provider = DefaultAppProvider(fileManager: fm, appDirectories: [base, base], maxDepth: 0)
+        let apps = try provider.fetchApplications()
+
+        XCTAssertEqual(apps.count, 1)
+    }
+
+    func testDefaultInitUsesSystemApplicationDirectories() {
+        // Just verify the provider can be initialized without explicit directories
+        // (exercises the `defaultApplicationDirectories` code path).
+        let provider = DefaultAppProvider()
+        XCTAssertNotNil(provider)
+    }
+
     private func createFakeAppBundle(at url: URL, bundleName: String) throws {
         let fm = FileManager.default
         let contents = url.appendingPathComponent("Contents", isDirectory: true)
