@@ -19,7 +19,7 @@ final class SettingsStore: ObservableObject {
     typealias HotKeyApplyAction = @MainActor (HotKey) -> Result<Void, HotKeyError>
 
     static let shared = SettingsStore()
-    static let defaultLauncherHotKey: HotKey = .optionSpace
+    static let defaultLauncherHotKey: HotKey = .commandSpace
 
     private enum DefaultsKey {
         static let hotKeyCode = "settings.launcherHotKey.keyCode"
@@ -343,8 +343,7 @@ final class SettingsStore: ObservableObject {
     }
 
     private static let reservedShortcuts: Set<HotKey> = [
-        .commandSpace,
-        HotKey(keyCode: 48, modifiers: .command)
+        HotKey(keyCode: 48, modifiers: .command)   // Cmd+Tab — always owned by the system
     ]
 
     private static func defaultSearchLocationPaths(fileManager: FileManager = .default) -> [String] {
