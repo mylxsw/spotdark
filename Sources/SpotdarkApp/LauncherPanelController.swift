@@ -68,7 +68,7 @@ final class LauncherPanelController {
 
     private func centerOnScreen() {
         guard let screen = NSScreen.main else { return }
-        let frame = screen.visibleFrame
+        let frame = screen.frame
         let origin = NSPoint(
             x: frame.midX - panel.frame.width / 2,
             y: frame.midY - panel.frame.height / 2
