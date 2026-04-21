@@ -49,26 +49,31 @@ final class LauncherCoordinator {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotKeyManager: HotKeyRegistering = NSEventHotKeyManager()
+    private let settingsStore = SettingsStore.shared
+
+    private var activeHotKey: HotKey?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         hotKeyManager.onError = { error in
             LauncherCoordinator.shared.showErrorFeedback(.hotKeyError(error))
         }
+        settingsStore.applyLauncherHotKey = { [weak self] hotKey in
+            self?.replaceLauncherHotKey(with: hotKey) ?? .failure(.monitorRegistrationFailed)
+        }
         registerHotKey()
         setupMenuBar()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        settingsStore.applyLauncherHotKey = nil
         hotKeyManager.unregisterAll()
     }
 
     private func registerHotKey() {
-        // Default to Option+Space to avoid conflicting with Spotlight (Cmd+Space).
-        // NSEvent monitors are passive — they cannot take exclusive ownership of a key combo,
-        // so defaulting to a non-conflicting binding is the right approach.
         do {
-            try registerLauncherHotKey(.optionSpace)
+            try registerLauncherHotKey(settingsStore.launcherHotKey)
+            activeHotKey = settingsStore.launcherHotKey
         } catch let error as HotKeyError {
             LauncherCoordinator.shared.showErrorFeedback(.hotKeyError(error))
         } catch {
@@ -100,6 +105,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func replaceLauncherHotKey(with hotKey: HotKey) -> Result<Void, HotKeyError> {
+        let previousHotKey = activeHotKey
+        hotKeyManager.unregisterAll()
+
+        do {
+            try registerLauncherHotKey(hotKey)
+            activeHotKey = hotKey
+            return .success(())
+        } catch let error as HotKeyError {
+            if let previousHotKey {
+                try? registerLauncherHotKey(previousHotKey)
+                activeHotKey = previousHotKey
+            }
+            LauncherCoordinator.shared.showErrorFeedback(.hotKeyError(error))
+            return .failure(error)
+        } catch {
+            if let previousHotKey {
+                try? registerLauncherHotKey(previousHotKey)
+                activeHotKey = previousHotKey
+            }
+            LauncherCoordinator.shared.showErrorFeedback(.shortcutMonitorError)
+            return .failure(.monitorRegistrationFailed)
+        }
+    }
+
     @objc private func showLauncherFromMenu() {
         Task { @MainActor in
             LauncherCoordinator.shared.show()
@@ -124,7 +154,11 @@ struct SpotdarkApp: App {
     var body: some Scene {
         // No default windows; this behaves like a menu bar accessory.
         Settings {
-            SettingsView(store: SettingsStore.shared)
+            SettingsView(store: settingsStore)
         }
+    }
+
+    private var settingsStore: SettingsStore {
+        SettingsStore.shared
     }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -84,13 +85,22 @@ private struct ShortcutSettingsPane: View {
             )
 
             Section {
-                SettingsValueRow(
-                    title: SettingsStrings.currentShortcutTitle,
-                    value: store.currentShortcutDisplay
-                )
+                SettingsShortcutRecorderView(store: store)
 
-                Button(SettingsStrings.recordShortcutButton) {}
-                    .disabled(true)
+                HStack {
+                    Button(store.shortcutPrimaryButtonTitle) {
+                        store.toggleShortcutRecording()
+                    }
+
+                    Button(SettingsStrings.resetShortcutButton) {
+                        store.resetShortcutToDefault()
+                    }
+                    .disabled(!store.canResetShortcut || store.isRecordingShortcut)
+                }
+
+                if let feedback = store.shortcutFeedback {
+                    SettingsShortcutFeedbackView(feedback: feedback)
+                }
 
                 SettingsSecondaryText(SettingsStrings.shortcutRecordingHelp)
             }
@@ -98,11 +108,19 @@ private struct ShortcutSettingsPane: View {
             Section {
                 SettingsValueRow(
                     title: SettingsStrings.fallbackShortcutTitle,
-                    value: SettingsStrings.fallbackShortcutValue
+                    value: store.fallbackShortcutDisplay
                 )
                 SettingsValueRow(
                     title: SettingsStrings.conflictHandlingTitle,
                     value: SettingsStrings.conflictHandlingValue
+                )
+                SettingsValueRow(
+                    title: SettingsStrings.shortcutLiveUpdateTitle,
+                    value: SettingsStrings.shortcutLiveUpdateValue
+                )
+                SettingsInlineNote(
+                    title: SettingsStrings.shortcutRulesTitle,
+                    message: SettingsStrings.shortcutRulesMessage
                 )
             }
         }
@@ -135,16 +153,32 @@ private struct SearchSettingsPane: View {
                         message: SettingsStrings.customLocationsEmptyMessage
                     )
                 } else {
-                    ForEach(store.customSearchLocations, id: \.self) { location in
-                        SettingsPathRow(path: location)
+                    List(selection: $store.selectedCustomSearchLocation) {
+                        ForEach(store.customSearchLocations, id: \.self) { location in
+                            SettingsPathRow(path: location)
+                                .tag(location)
+                        }
                     }
+                    .frame(minHeight: 168)
+                    .listStyle(.inset(alternatesRowBackgrounds: true))
                 }
 
                 HStack {
-                    Button(SettingsStrings.addFolderButton) {}
-                        .disabled(true)
-                    Button(SettingsStrings.removeFolderButton) {}
-                        .disabled(true)
+                    Button(SettingsStrings.addFolderButton) {
+                        presentFolderPicker()
+                    }
+                    Button(SettingsStrings.removeFolderButton) {
+                        store.removeSelectedCustomSearchLocation()
+                    }
+                    .disabled(!store.canRemoveSelectedCustomSearchLocation)
+                    Button(SettingsStrings.moveFolderUpButton) {
+                        store.moveSelectedCustomSearchLocationUp()
+                    }
+                    .disabled(!store.canMoveSelectedCustomSearchLocationUp)
+                    Button(SettingsStrings.moveFolderDownButton) {
+                        store.moveSelectedCustomSearchLocationDown()
+                    }
+                    .disabled(!store.canMoveSelectedCustomSearchLocationDown)
                 }
 
                 SettingsSecondaryText(SettingsStrings.customLocationsHelp)
@@ -152,6 +186,20 @@ private struct SearchSettingsPane: View {
         }
         .formStyle(.grouped)
         .padding(20)
+    }
+
+    private func presentFolderPicker() {
+        let panel = NSOpenPanel()
+        panel.title = SettingsStrings.folderPickerTitle
+        panel.message = SettingsStrings.folderPickerMessage
+        panel.prompt = SettingsStrings.folderPickerPrompt
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        store.addCustomSearchLocation(url)
     }
 }
 
@@ -246,7 +294,7 @@ private struct SettingsPathRow: View {
         HStack(spacing: 10) {
             Image(systemName: "folder")
                 .foregroundStyle(.secondary)
-            Text(path)
+            Text(NSString(string: path).abbreviatingWithTildeInPath)
                 .textSelection(.enabled)
             Spacer(minLength: 0)
         }
@@ -277,6 +325,21 @@ private struct SettingsRoadmapRow: View {
             Text(title)
                 .font(.headline)
             Text(summary)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct SettingsInlineNote: View {
+    let title: String
+    let message: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.headline)
+            Text(message)
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)

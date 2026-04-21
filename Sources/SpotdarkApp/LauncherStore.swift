@@ -10,6 +10,8 @@ final class LauncherStore {
     }
 
     private(set) var results: [SearchItem] = []
+    private(set) var trimmedQuery: String = ""
+    private(set) var isInitialIndexing: Bool = true
 
     /// Selection index for the results list.
     ///
@@ -25,6 +27,14 @@ final class LauncherStore {
 
     // Focus requests are bridged via a counter.
     private(set) var focusRequestID: Int = 0
+
+    var isShowingResults: Bool {
+        !results.isEmpty
+    }
+
+    var isShowingNoResultsState: Bool {
+        !trimmedQuery.isEmpty && results.isEmpty
+    }
 
     init(
         commandProvider: CommandProviding,
@@ -95,6 +105,8 @@ final class LauncherStore {
     private func apply(delta: AppIndexDelta) {
         switch delta {
         case .initial(let apps):
+            // The first Spotlight snapshot completes the initial loading phase.
+            isInitialIndexing = false
             indexedAppsByURL = Dictionary(uniqueKeysWithValues: apps.map { app in
                 let url = app.bundleURL
                 let name = AppPresentationCache.shared.displayName(for: url)
@@ -136,7 +148,8 @@ final class LauncherStore {
     }
 
     private func performSearchNow() {
-        results = engine?.search(query: query) ?? []
+        trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        results = engine?.search(query: trimmedQuery) ?? []
         selectedIndex = clampIndex(selectedIndex)
     }
 

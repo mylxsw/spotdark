@@ -24,8 +24,11 @@ final class LauncherPanelController {
             CommandItem(id: "quit", title: "Quit", keywords: ["exit", "close"])
         ])
 
-        // App indexing is wired via a Spotlight index stream in the store.
-        store = LauncherStore(commandProvider: commandRegistry)
+        // App indexing follows the directories configured in Settings.
+        store = LauncherStore(
+            commandProvider: commandRegistry,
+            indexStream: SettingsAppIndexStream(settingsStore: .shared)
+        )
 
         let rootView = LauncherRootView(store: store)
         let hosting = NSHostingController(rootView: rootView)

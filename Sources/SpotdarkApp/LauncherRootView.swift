@@ -58,7 +58,7 @@ struct LauncherRootView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
 
-            TextField("Search apps or commands", text: $store.query)
+            TextField(LauncherStrings.searchPlaceholder, text: $store.query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 20, weight: .semibold, design: .default))
                 .focused($isSearchFocused)
@@ -91,28 +91,52 @@ struct LauncherRootView: View {
     }
 
     private var resultsList: some View {
-        ScrollViewReader { proxy in
-            List {
-                ForEach(Array(store.results.enumerated()), id: \.offset) { index, item in
-                    LauncherRowView(item: item, query: store.query)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10))
-                        .listRowBackground(rowBackground(isSelected: store.selectedIndex == index))
-                        .onTapGesture {
-                            store.select(index: index)
-                            store.performSelectedAction()
+        Group {
+            if store.isInitialIndexing {
+                LauncherLoadingStateView()
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else if store.isShowingResults {
+                ScrollViewReader { proxy in
+                    List {
+                        ForEach(Array(store.results.enumerated()), id: \.offset) { index, item in
+                            LauncherRowView(item: item, query: store.trimmedQuery)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10))
+                                .listRowBackground(rowBackground(isSelected: store.selectedIndex == index))
+                                .onTapGesture {
+                                    store.select(index: index)
+                                    store.performSelectedAction()
+                                }
+                                .id(index)
                         }
-                        .id(index)
+                    }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.clear)
+                    .onChange(of: store.selectedIndex) {
+                        withAnimation(.easeOut(duration: 0.08)) {
+                            proxy.scrollTo(store.selectedIndex, anchor: .center)
+                        }
+                    }
                 }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Color.clear)
-            .onChange(of: store.selectedIndex) {
-                withAnimation(.easeOut(duration: 0.08)) {
-                    proxy.scrollTo(store.selectedIndex, anchor: .center)
-                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+            } else if store.isShowingNoResultsState {
+                LauncherEmptyStateView(
+                    systemImage: "exclamationmark.magnifyingglass",
+                    title: LauncherStrings.noResultsTitle,
+                    message: String(
+                        format: LauncherStrings.noResultsMessageTemplate,
+                        store.trimmedQuery
+                    ),
+                    hint: LauncherStrings.noResultsHint
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else {
+                Color.clear
             }
         }
+        .animation(.easeOut(duration: 0.2), value: store.isInitialIndexing)
+        .animation(.easeOut(duration: 0.16), value: store.isShowingResults)
+        .animation(.easeOut(duration: 0.16), value: store.isShowingNoResultsState)
     }
 
     @ViewBuilder
@@ -167,9 +191,9 @@ struct LauncherRowView: View {
     private var subtitle: String {
         switch item {
         case .application:
-            return "Application"
+            return LauncherStrings.applicationResultLabel
         case .command:
-            return "Command"
+            return LauncherStrings.commandResultLabel
         }
     }
 

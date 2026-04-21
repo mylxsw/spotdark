@@ -103,7 +103,7 @@ public final class DefaultAppProvider: AppProviding {
         return AppItem(name: name, bundleIdentifier: bundleId, bundleURL: url)
     }
 
-    private static func defaultApplicationDirectories(fileManager: FileManager) -> [URL] {
+    public static func defaultApplicationDirectories(fileManager: FileManager = .default) -> [URL] {
         var dirs: [URL] = [
             URL(fileURLWithPath: "/Applications", isDirectory: true),
             URL(fileURLWithPath: "/Applications/Utilities", isDirectory: true),
