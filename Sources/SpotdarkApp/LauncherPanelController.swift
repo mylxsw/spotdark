@@ -31,6 +31,7 @@ final class LauncherPanelController: NSObject {
 
         PluginManager.shared.register(searchSource: SystemInfoPlugin())
         PluginManager.shared.register(searchSource: ClipboardHistoryPlugin())
+        PluginManager.shared.register(action: SystemCommandsPlugin())
         ClipboardHistoryStore.shared.startMonitoring()
 
         // App indexing follows the directories configured in Settings.
