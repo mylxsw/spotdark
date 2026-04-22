@@ -21,8 +21,8 @@ struct LauncherRootView: View {
                     resultsList
                         .transition(
                             .asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .top)),
-                                removal: .opacity
+                                insertion: .opacity.combined(with: .scale(scale: 0.985, anchor: .top)),
+                                removal: .opacity.combined(with: .scale(scale: 0.995, anchor: .top))
                             )
                         )
                 }
@@ -72,6 +72,9 @@ struct LauncherRootView: View {
                     store.hide()
                 }
             )
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            LauncherShortcutHintView(settingsStore: SettingsStore.shared)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
@@ -125,7 +128,7 @@ struct LauncherRootView: View {
                     }
                     .background(Color.clear)
                     .onChange(of: store.selectedIndex) {
-                        withAnimation(.easeOut(duration: 0.12)) {
+                        withAnimation(.snappy(duration: LauncherPanelMetrics.selectionScrollAnimationDuration, extraBounce: 0)) {
                             proxy.scrollTo(store.selectedIndex, anchor: .center)
                         }
                     }
@@ -147,9 +150,9 @@ struct LauncherRootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.easeOut(duration: 0.12), value: store.isInitialIndexing)
-        .animation(.easeOut(duration: 0.08), value: store.isShowingResults)
-        .animation(.easeOut(duration: 0.08), value: store.isShowingNoResultsState)
+        .animation(.snappy(duration: LauncherPanelMetrics.expandedContentAnimationDuration, extraBounce: 0), value: store.isInitialIndexing)
+        .animation(.snappy(duration: LauncherPanelMetrics.contentSwapAnimationDuration, extraBounce: 0), value: store.isShowingResults)
+        .animation(.snappy(duration: LauncherPanelMetrics.contentSwapAnimationDuration, extraBounce: 0), value: store.isShowingNoResultsState)
     }
 
     @ViewBuilder
@@ -198,6 +201,8 @@ struct LauncherRowView: View {
             return app.name
         case .command(let cmd):
             return cmd.title
+        case .file(let file):
+            return file.name
         }
     }
 
@@ -207,6 +212,13 @@ struct LauncherRowView: View {
             return LauncherStrings.applicationResultLabel
         case .command:
             return LauncherStrings.commandResultLabel
+        case .file(let file):
+            let parent = file.path.deletingLastPathComponent().path
+            let home = FileManager.default.homeDirectoryForCurrentUser.path
+            if parent.hasPrefix(home) {
+                return "~" + parent.dropFirst(home.count)
+            }
+            return parent
         }
     }
 
@@ -222,22 +234,10 @@ struct LauncherRowView: View {
                 .padding(5)
                 .foregroundStyle(.secondary)
                 .background(.thinMaterial)
+        case .file(let file):
+            Image(nsImage: AppPresentationCache.shared.fileIcon(for: file.path, size: CGSize(width: 28, height: 28)))
+                .resizable()
+                .scaledToFit()
         }
-    }
-}
-
-struct AppIconView: NSViewRepresentable {
-    let bundleURL: URL
-
-    func makeNSView(context: Context) -> NSImageView {
-        let imageView = NSImageView()
-        imageView.imageScaling = .scaleProportionallyUpOrDown
-        imageView.wantsLayer = true
-        imageView.layer?.masksToBounds = true
-        return imageView
-    }
-
-    func updateNSView(_ nsView: NSImageView, context: Context) {
-        nsView.image = AppPresentationCache.shared.icon(for: bundleURL, size: CGSize(width: 28, height: 28))
     }
 }

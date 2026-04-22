@@ -25,6 +25,7 @@ final class LauncherStore {
     var selectedIndex: Int = 0
 
     private let commandProvider: CommandProviding
+    private let fileSearchProvider: FileSearchProviding
     private var engine: SearchEngine?
 
     private let tasks = TaskBox()
@@ -52,9 +53,11 @@ final class LauncherStore {
 
     init(
         commandProvider: CommandProviding,
-        indexStream: AppIndexStreaming = SpotlightIndexStream()
+        indexStream: AppIndexStreaming = SpotlightIndexStream(),
+        fileSearchProvider: FileSearchProviding = SpotlightFileSearchProvider()
     ) {
         self.commandProvider = commandProvider
+        self.fileSearchProvider = fileSearchProvider
 
         startIndexing(stream: indexStream)
         rebuildEngine(apps: [])
@@ -103,6 +106,8 @@ final class LauncherStore {
             NSWorkspace.shared.openApplication(at: app.bundleURL, configuration: NSWorkspace.OpenConfiguration())
         case .command(let command):
             handle(command: command)
+        case .file(let file):
+            NSWorkspace.shared.open(file.path)
         }
 
         hide()
@@ -174,10 +179,33 @@ final class LauncherStore {
 
     private func performSearchNow() {
         trimmedQuery = liveTrimmedQuery
-        results = engine?.search(query: trimmedQuery) ?? []
+        let appResults = engine?.search(query: trimmedQuery) ?? []
+        results = appResults
         isSearchPending = false
         selectedIndex = clampIndex(selectedIndex)
         notifyPanelHeightChange(animated: true)
+
+        // Run file search in parallel for queries with at least 2 characters.
+        guard trimmedQuery.count >= 2 else {
+            tasks.cancelFileSearchTask()
+            return
+        }
+
+        let querySnapshot = trimmedQuery
+        let provider = fileSearchProvider
+        tasks.setFileSearchTask(Task { [weak self] in
+            guard let self else { return }
+            for await fileItems in provider.search(query: querySnapshot) {
+                guard !Task.isCancelled else { return }
+                let fileResults = fileItems.map { SearchItem.file($0) }
+                let combined = Array((appResults + fileResults).prefix(20))
+                await MainActor.run { [weak self] in
+                    guard let self, self.trimmedQuery == querySnapshot else { return }
+                    self.results = combined
+                    self.selectedIndex = self.clampIndex(self.selectedIndex)
+                }
+            }
+        })
     }
 
     private func clampIndex(_ index: Int) -> Int {
@@ -227,6 +255,7 @@ private final class TaskBox {
     private let lock = NSLock()
     private var indexTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
+    private var fileSearchTask: Task<Void, Never>?
 
     func setIndexTask(_ task: Task<Void, Never>) {
         lock.lock()
@@ -242,19 +271,37 @@ private final class TaskBox {
         searchTask = task
     }
 
+    func setFileSearchTask(_ task: Task<Void, Never>) {
+        lock.lock()
+        defer { lock.unlock() }
+        fileSearchTask?.cancel()
+        fileSearchTask = task
+    }
+
     func cancelAll() {
         lock.lock()
         defer { lock.unlock() }
         indexTask?.cancel()
         searchTask?.cancel()
+        fileSearchTask?.cancel()
         indexTask = nil
         searchTask = nil
+        fileSearchTask = nil
     }
 
     func cancelSearchTask() {
         lock.lock()
         defer { lock.unlock() }
         searchTask?.cancel()
+        fileSearchTask?.cancel()
         searchTask = nil
+        fileSearchTask = nil
+    }
+
+    func cancelFileSearchTask() {
+        lock.lock()
+        defer { lock.unlock() }
+        fileSearchTask?.cancel()
+        fileSearchTask = nil
     }
 }

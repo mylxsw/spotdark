@@ -4,6 +4,7 @@ import Foundation
 public enum SearchItem: Equatable {
     case application(AppItem)
     case command(CommandItem)
+    case file(FileItem)
 }
 
 /// Represents a macOS application bundle that can be launched.
@@ -29,5 +30,20 @@ public struct CommandItem: Equatable, Hashable {
         self.id = id
         self.title = title
         self.keywords = keywords
+    }
+}
+
+/// Represents a file or document found by Spotlight.
+public struct FileItem: Equatable, Hashable, Sendable {
+    public let name: String
+    public let path: URL
+    public let contentType: String?
+    public let modificationDate: Date?
+
+    public init(name: String, path: URL, contentType: String?, modificationDate: Date?) {
+        self.name = name
+        self.path = path
+        self.contentType = contentType
+        self.modificationDate = modificationDate
     }
 }

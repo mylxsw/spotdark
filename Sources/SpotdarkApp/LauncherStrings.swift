@@ -2,9 +2,11 @@ import Foundation
 
 enum LauncherStrings {
     static let searchPlaceholder = "Search apps or commands"
+    static let launcherShortcutAccessibilityLabelTemplate = "Launcher shortcut %@"
 
     static let applicationResultLabel = "Application"
     static let commandResultLabel = "Command"
+    static let fileResultLabel = "File"
 
     static let loadingTitle = "Indexing Applications"
     static let loadingMessage = "Building the initial app catalog so results can appear instantly."

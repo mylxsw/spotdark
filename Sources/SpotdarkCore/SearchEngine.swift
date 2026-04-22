@@ -72,6 +72,8 @@ public final class SearchEngine {
             return app.name
         case .command(let cmd):
             return cmd.title
+        case .file(let file):
+            return file.name
         }
     }
 
