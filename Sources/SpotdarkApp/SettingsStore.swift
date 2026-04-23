@@ -584,13 +584,13 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .general:
-            "gearshape"
+            "paintbrush"
         case .shortcuts:
-            "command"
+            "keyboard"
         case .search:
             "magnifyingglass"
         case .about:
-            "sparkles"
+            "slider.horizontal.3"
         }
     }
 }

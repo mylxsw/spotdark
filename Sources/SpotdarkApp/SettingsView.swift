@@ -10,16 +10,12 @@ struct SettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            SDSidebar()
+            SDSidebar(selectedPane: $store.selectedPane)
             Divider()
-            VStack(spacing: 0) {
-                SDTabBar(selectedPane: $store.selectedPane)
-                Divider()
-                contentView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            contentView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(width: 860, height: 560)
+        .frame(width: 820, height: 520)
         .background(Color(NSColor.windowBackgroundColor))
     }
 
@@ -37,138 +33,109 @@ struct SettingsView: View {
 // MARK: - Sidebar
 
 private struct SDSidebar: View {
+    @Binding var selectedPane: SettingsPane
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // App header
-            HStack(spacing: 9) {
+
+            // ── App header ──────────────────────────────────────
+            HStack(spacing: 12) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(LinearGradient(
-                            colors: [Color(red: 0.22, green: 0.52, blue: 1.0), Color(red: 0.08, green: 0.32, blue: 0.92)],
+                            colors: [Color(red: 0.22, green: 0.52, blue: 1.0),
+                                     Color(red: 0.06, green: 0.28, blue: 0.90)],
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         ))
                     Image(systemName: "sparkle.magnifyingglass")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundStyle(.white)
                 }
-                .frame(width: 26, height: 26)
+                .frame(width: 40, height: 40)
+                .shadow(color: Color.blue.opacity(0.3), radius: 6, x: 0, y: 3)
 
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Spotdark")
-                        .font(.system(size: 11, weight: .semibold))
-                    Text("v0.1")
-                        .font(.system(size: 9.5))
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("Preferences")
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 18)
-            .padding(.bottom, 16)
+            .padding(.horizontal, 18)
+            .padding(.top, 24)
+            .padding(.bottom, 22)
 
-            // Nav items
-            VStack(spacing: 1) {
-                ForEach(SDSidebarNavItem.items) { item in
-                    SDSidebarRow(item: item)
+            // ── Nav items ───────────────────────────────────────
+            VStack(spacing: 2) {
+                ForEach(SettingsPane.allCases) { pane in
+                    SDSidebarNavItem(
+                        icon: pane.systemImage,
+                        iconColor: pane.sidebarAccentColor,
+                        label: pane.title,
+                        isSelected: selectedPane == pane
+                    ) {
+                        selectedPane = pane
+                    }
                 }
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 10)
 
             Spacer(minLength: 0)
         }
-        .frame(width: 110)
-        .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .frame(width: 180)
+        .background(Color(NSColor.controlBackgroundColor).opacity(0.55))
     }
 }
 
-private struct SDSidebarNavItem: Identifiable {
-    let id: String
+private struct SDSidebarNavItem: View {
     let icon: String
+    let iconColor: Color
     let label: String
-    let isSelected: Bool
-
-    static let items: [SDSidebarNavItem] = [
-        SDSidebarNavItem(id: "search",    icon: "magnifyingglass",    label: "Search",    isSelected: false),
-        SDSidebarNavItem(id: "library",   icon: "books.vertical",     label: "Library",   isSelected: false),
-        SDSidebarNavItem(id: "recent",    icon: "clock",              label: "Recent",    isSelected: false),
-        SDSidebarNavItem(id: "downloads", icon: "arrow.down.to.line", label: "Downloads", isSelected: false),
-        SDSidebarNavItem(id: "settings",  icon: "gearshape.fill",     label: "Settings",  isSelected: true),
-    ]
-}
-
-private struct SDSidebarRow: View {
-    let item: SDSidebarNavItem
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: item.icon)
-                .font(.system(size: 13, weight: item.isSelected ? .semibold : .regular))
-                .foregroundStyle(item.isSelected ? Color.accentColor : Color.secondary)
-                .frame(width: 16, alignment: .center)
-            Text(item.label)
-                .font(.system(size: 12.5, weight: item.isSelected ? .medium : .regular))
-                .foregroundStyle(item.isSelected ? Color.primary : Color.secondary)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(item.isSelected ? Color.accentColor.opacity(0.14) : Color.clear)
-        )
-    }
-}
-
-// MARK: - Tab Bar
-
-private struct SDTabBar: View {
-    @Binding var selectedPane: SettingsPane
-    private let orderedPanes: [SettingsPane] = [.search, .general, .shortcuts, .about]
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(orderedPanes) { pane in
-                SDTabButton(title: pane.title, isSelected: selectedPane == pane) {
-                    selectedPane = pane
-                }
-            }
-            Spacer(minLength: 0)
-            HStack(spacing: 0) {
-                Image(systemName: "line.3.horizontal.decrease")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 30, height: 30)
-                Image(systemName: "square.grid.2x2")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 30, height: 30)
-            }
-            .padding(.trailing, 8)
-        }
-        .padding(.leading, 16)
-        .frame(height: 42)
-    }
-}
-
-private struct SDTabButton: View {
-    let title: String
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 0) {
-                Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+            HStack(spacing: 11) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(iconColor)
+                    Image(systemName: icon)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 28, height: 28)
+
+                Text(label)
+                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
                     .foregroundStyle(isSelected ? Color.primary : Color.secondary)
-                    .padding(.horizontal, 12)
-                    .frame(maxHeight: .infinity)
-                Rectangle()
-                    .fill(isSelected ? Color.accentColor : Color.clear)
-                    .frame(height: 2)
+
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected
+                          ? Color.primary.opacity(0.08)
+                          : Color.clear)
+            )
         }
         .buttonStyle(.plain)
-        .frame(height: 42)
+    }
+}
+
+// MARK: - SettingsPane sidebar color
+
+extension SettingsPane {
+    fileprivate var sidebarAccentColor: Color {
+        switch self {
+        case .search:    Color(red: 0.10, green: 0.48, blue: 1.00)   // blue
+        case .general:   Color(red: 0.60, green: 0.25, blue: 0.95)   // purple
+        case .shortcuts: Color(red: 0.98, green: 0.55, blue: 0.10)   // orange
+        case .about:     Color(red: 0.40, green: 0.40, blue: 0.45)   // gray
+        }
     }
 }
 
@@ -179,38 +146,37 @@ private struct SDSearchScopePane: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 22) {
                 SDPaneHeader(
                     title: "Search Scope",
                     subtitle: "Configure where Spotdark looks for files and information across your system."
                 )
 
-                VStack(alignment: .leading, spacing: 7) {
+                // System Locations
+                VStack(alignment: .leading, spacing: 8) {
                     SDSectionHeader("SYSTEM LOCATIONS")
                     SDCard {
-                        let items = systemLocationRows
-                        ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        let rows = systemLocationRows
+                        ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                             if index > 0 { SDRowDivider() }
                             SDLocationToggleRow(
-                                icon: item.icon,
-                                iconColor: item.iconColor,
-                                title: item.title,
-                                subtitle: item.subtitle,
-                                isOn: true
+                                icon: row.icon, iconColor: row.color,
+                                title: row.title, subtitle: row.subtitle, isOn: true
                             )
                         }
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 7) {
+                // Custom Locations
+                VStack(alignment: .leading, spacing: 8) {
                     SDSectionHeader("CUSTOM LOCATIONS")
                     SDCard {
                         if store.customSearchLocations.isEmpty {
-                            VStack(spacing: 12) {
+                            VStack(spacing: 14) {
                                 Image(systemName: "folder.badge.questionmark")
-                                    .font(.system(size: 30, weight: .light))
-                                    .foregroundStyle(.secondary)
-                                VStack(spacing: 4) {
+                                    .font(.system(size: 32, weight: .light))
+                                    .foregroundStyle(Color.secondary.opacity(0.7))
+                                VStack(spacing: 5) {
                                     Text("No custom folders")
                                         .font(.system(size: 13, weight: .semibold))
                                     Text("Add specific folders or external drives you want\nSpotdark to index.")
@@ -222,28 +188,29 @@ private struct SDSearchScopePane: View {
                                     Label("Add Folder...", systemImage: "plus")
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundStyle(.white)
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 7)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
                                         .background(
-                                            Capsule(style: .continuous).fill(Color.accentColor)
+                                            Capsule(style: .continuous)
+                                                .fill(Color.accentColor)
                                         )
                                 }
                                 .buttonStyle(.plain)
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 22)
+                            .padding(.vertical, 26)
                         } else {
-                            ForEach(Array(store.customSearchLocations.enumerated()), id: \.offset) { index, location in
+                            ForEach(Array(store.customSearchLocations.enumerated()), id: \.offset) { index, loc in
                                 if index > 0 { SDRowDivider() }
                                 HStack(spacing: 12) {
                                     SDIconBadge(systemImage: "folder", backgroundColor: Color.blue.opacity(0.15))
-                                    Text(NSString(string: location).abbreviatingWithTildeInPath)
+                                    Text(NSString(string: loc).abbreviatingWithTildeInPath)
                                         .font(.system(size: 13))
                                         .lineLimit(1)
                                         .truncationMode(.middle)
                                     Spacer(minLength: 8)
                                     Button {
-                                        store.selectedCustomSearchLocation = location
+                                        store.selectedCustomSearchLocation = loc
                                         store.removeSelectedCustomSearchLocation()
                                     } label: {
                                         Image(systemName: "minus.circle.fill")
@@ -262,7 +229,7 @@ private struct SDSearchScopePane: View {
                                         .foregroundStyle(.white)
                                         .padding(.horizontal, 14)
                                         .padding(.vertical, 7)
-                                        .background(Capsule(style: .continuous).fill(Color.accentColor))
+                                        .background(Capsule().fill(Color.accentColor))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -272,13 +239,15 @@ private struct SDSearchScopePane: View {
                     }
                 }
 
-                // Web Search Integration
+                // Web Search
                 SDCard {
                     HStack(spacing: 12) {
                         ZStack {
-                            Circle().fill(Color.blue.opacity(0.18)).frame(width: 32, height: 32)
+                            Circle()
+                                .fill(Color.blue.opacity(0.15))
+                                .frame(width: 32, height: 32)
                             Image(systemName: "globe")
-                                .font(.system(size: 15, weight: .medium))
+                                .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(Color.blue)
                         }
                         VStack(alignment: .leading, spacing: 2) {
@@ -295,7 +264,7 @@ private struct SDSearchScopePane: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(width: 90)
+                        .frame(width: 88)
                         Toggle("", isOn: .constant(true))
                             .toggleStyle(.switch)
                             .labelsHidden()
@@ -306,31 +275,28 @@ private struct SDSearchScopePane: View {
                     .padding(.vertical, 12)
                 }
             }
-            .padding(18)
+            .padding(22)
         }
     }
 
-    private var systemLocationRows: [(icon: String, iconColor: Color, title: String, subtitle: String)] {
+    private var systemLocationRows: [(icon: String, color: Color, title: String, subtitle: String)] {
         let skipSuffixes = ["/Applications/Utilities", "/System/Applications/Utilities"]
         return Array(
             store.defaultSearchLocations
                 .filter { path in !skipSuffixes.contains(where: { path.hasSuffix($0) || path == $0 }) }
                 .prefix(3)
-                .map { path -> (String, Color, String, String) in
-                    let abbrev = NSString(string: path).abbreviatingWithTildeInPath
-                    if path == "/Applications" {
-                        return ("folder.fill", Color.blue.opacity(0.18), "Applications", abbrev)
-                    } else if path.contains("/Users/") {
-                        return ("person.fill", Color.orange.opacity(0.18), "User Home", abbrev)
-                    } else if path.hasPrefix("/System/") {
-                        return ("apple.logo", Color.gray.opacity(0.22), "System Applications", abbrev)
-                    } else if path.contains("Caskroom") {
-                        return ("shippingbox.fill", Color.orange.opacity(0.18), "Homebrew Cask", abbrev)
-                    } else {
-                        return ("folder.fill", Color.blue.opacity(0.18), URL(fileURLWithPath: path).lastPathComponent, abbrev)
-                    }
-                }
-        )
+        ).map { path in
+            let abbrev = NSString(string: path).abbreviatingWithTildeInPath
+            if path == "/Applications" {
+                return ("folder.fill", Color.blue.opacity(0.18), "Applications", abbrev)
+            } else if path.contains("/Users/") {
+                return ("person.fill", Color.orange.opacity(0.18), "User Home", abbrev)
+            } else if path.hasPrefix("/System/") {
+                return ("apple.logo", Color.primary.opacity(0.12), "System Applications", abbrev)
+            } else {
+                return ("folder.fill", Color.blue.opacity(0.18), URL(fileURLWithPath: path).lastPathComponent, abbrev)
+            }
+        }
     }
 
     private func presentFolderPicker() {
@@ -363,10 +329,7 @@ private struct SDLocationToggleRow: View {
             }
             Spacer(minLength: 8)
             Toggle("", isOn: .constant(isOn))
-                .toggleStyle(.switch)
-                .labelsHidden()
-                .tint(.blue)
-                .disabled(true)
+                .toggleStyle(.switch).labelsHidden().tint(.blue).disabled(true)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -380,36 +343,35 @@ private struct SDAppearancePane: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 22) {
                 SDPaneHeader(
                     title: "Appearance",
                     subtitle: "Choose how Spotdark looks and feels across all surfaces."
                 )
 
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     SDSectionHeader("WINDOW APPEARANCE")
                     SDCard {
                         VStack(alignment: .leading, spacing: 10) {
                             Picker("", selection: $store.selectedAppearance) {
-                                ForEach(SettingsAppearance.allCases) { appearance in
-                                    Text(appearance.title).tag(appearance)
+                                ForEach(SettingsAppearance.allCases) { a in
+                                    Text(a.title).tag(a)
                                 }
                             }
                             .pickerStyle(.segmented)
                             .labelsHidden()
                             Text("Choose whether Spotdark follows the system appearance or stays pinned to light or dark mode.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     SDSectionHeader("COLOR THEME")
                     LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 12)],
+                        columns: [GridItem(.adaptive(minimum: 200, maximum: 280), spacing: 12)],
                         alignment: .leading, spacing: 12
                     ) {
                         ForEach(LauncherThemePreset.allCases) { preset in
@@ -424,7 +386,7 @@ private struct SDAppearancePane: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            .padding(18)
+            .padding(22)
         }
     }
 }
@@ -436,98 +398,88 @@ private struct SDShortcutsPane: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 22) {
                 SDPaneHeader(
                     title: "Shortcuts",
                     subtitle: "Configure keyboard shortcuts to navigate and control Spotdark."
                 )
 
-                // Main hotkey card
+                // Main hotkey + fallback + conflict card
                 SDCard {
                     VStack(spacing: 0) {
-                        // Global Hotkey – tap row to begin recording
+                        // Global Hotkey
                         Button {
                             if !store.isRecordingShortcut { store.beginShortcutRecording() }
                         } label: {
-                            HStack(alignment: .center, spacing: 12) {
-                                VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text("Global Hotkey")
                                         .font(.system(size: 13, weight: .semibold))
                                         .foregroundStyle(.primary)
                                     Text("The primary shortcut to summon or dismiss Spotdark from anywhere.")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .font(.caption).foregroundStyle(.secondary)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
-                                Spacer(minLength: 16)
+                                Spacer(minLength: 20)
                                 if store.isRecordingShortcut {
-                                    Text("Recording…")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundStyle(Color.accentColor)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                                .fill(Color.accentColor.opacity(0.12))
-                                        )
+                                    HStack(spacing: 6) {
+                                        ProgressView().controlSize(.small)
+                                        Text("Recording…")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundStyle(Color.accentColor)
+                                    }
                                 } else {
                                     SDHotkeyBadgeRow(hotKey: store.launcherHotKey)
                                 }
                             }
                             .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, 13)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
 
                         SDRowDivider()
 
-                        // Fallback shortcut row
                         HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 3) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text("Fallback Shortcut")
                                     .font(.system(size: 13, weight: .medium))
                                 Text("Alternative activation if primary is blocked.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .font(.caption).foregroundStyle(.secondary)
                             }
-                            Spacer(minLength: 16)
+                            Spacer(minLength: 20)
                             SDSelectBadge(label: store.fallbackShortcutDisplay)
                         }
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 13)
 
                         SDRowDivider()
 
-                        // Conflict handling row
                         HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 3) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text("Conflict Handling")
                                     .font(.system(size: 13, weight: .medium))
                                 Text("Behavior when another app uses the same shortcut.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .font(.caption).foregroundStyle(.secondary)
                             }
-                            Spacer(minLength: 16)
+                            Spacer(minLength: 20)
                             SDSelectBadge(label: "Override other app")
                         }
                         .padding(.horizontal, 14)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 13)
                     }
                 }
 
-                // Inline recorder (shown when active)
+                // Inline recorder
                 if store.isRecordingShortcut {
                     SettingsShortcutRecorderView(store: store)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                // Feedback
                 if let feedback = store.shortcutFeedback {
                     SettingsShortcutFeedbackView(feedback: feedback)
                 }
 
-                // Record/Reset buttons
                 HStack(spacing: 10) {
                     Button(store.shortcutPrimaryButtonTitle) { store.toggleShortcutRecording() }
                     Button("Reset to Default") { store.resetShortcutToDefault() }
@@ -535,18 +487,19 @@ private struct SDShortcutsPane: View {
                 }
                 .animation(.easeInOut(duration: 0.18), value: store.isRecordingShortcut)
 
-                VStack(alignment: .leading, spacing: 7) {
+                // Navigation section
+                VStack(alignment: .leading, spacing: 8) {
                     SDSectionHeader("NAVIGATION")
                     SDCard {
                         VStack(spacing: 0) {
-                            SDNavShortcutRow(title: "Next Item", keys: ["Tab"])
+                            SDNavShortcutRow(title: "Next Item",     keys: ["Tab"])
                             SDRowDivider()
                             SDNavShortcutRow(title: "Previous Item", keys: ["Shift", "Tab"])
                         }
                     }
                 }
             }
-            .padding(18)
+            .padding(22)
             .animation(.easeInOut(duration: 0.18), value: store.isRecordingShortcut)
         }
     }
@@ -559,8 +512,8 @@ private struct SDNavShortcutRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Text(title).font(.system(size: 13, weight: .medium))
-            Spacer(minLength: 16)
-            HStack(spacing: 4) {
+            Spacer(minLength: 20)
+            HStack(spacing: 5) {
                 ForEach(Array(keys.enumerated()), id: \.offset) { index, key in
                     if index > 0 {
                         Text("+").font(.system(size: 10)).foregroundStyle(.tertiary)
@@ -570,7 +523,7 @@ private struct SDNavShortcutRow: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.vertical, 13)
     }
 }
 
@@ -581,7 +534,7 @@ private struct SDHotkeyBadgeRow: View {
         HStack(spacing: 5) {
             ForEach(Array(badgeLabels.enumerated()), id: \.offset) { index, label in
                 if index > 0 {
-                    Text("+").font(.system(size: 11)).foregroundStyle(.tertiary)
+                    Text("+").font(.system(size: 10)).foregroundStyle(.tertiary)
                 }
                 SDKeyBadge(label: label)
             }
@@ -589,15 +542,12 @@ private struct SDHotkeyBadgeRow: View {
     }
 
     private var badgeLabels: [String] {
-        let modifiers: [Character] = ["⌃", "⌥", "⇧", "⌘"]
-        var badges: [String] = []
-        var remaining = hotKey.displayString
-        while let first = remaining.first, modifiers.contains(first) {
-            badges.append(String(first))
-            remaining = String(remaining.dropFirst())
-        }
-        if !remaining.isEmpty { badges.append(remaining) }
-        return badges
+        let mods: [Character] = ["⌃", "⌥", "⇧", "⌘"]
+        var out: [String] = []
+        var rest = hotKey.displayString
+        while let c = rest.first, mods.contains(c) { out.append(String(c)); rest = String(rest.dropFirst()) }
+        if !rest.isEmpty { out.append(rest) }
+        return out
     }
 }
 
@@ -609,41 +559,38 @@ private struct SDAdvancedPane: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 22) {
                 SDPaneHeader(
                     title: "Advanced",
                     subtitle: "Launcher behavior, data management, and application information."
                 )
 
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     SDSectionHeader("LAUNCHER PANEL")
                     SDCard {
                         VStack(spacing: 0) {
-                            SDToggleRow(
-                                icon: "arrow.up.right.square", iconColor: Color.blue.opacity(0.18),
-                                title: "Launch at login",
-                                subtitle: "Start Spotdark automatically when you log in.",
-                                isOn: $store.launchAtLoginEnabled
-                            )
+                            SDToggleRow(icon: "arrow.up.right.square",
+                                        iconColor: Color.blue.opacity(0.18),
+                                        title: "Launch at login",
+                                        subtitle: "Start Spotdark automatically when you log in.",
+                                        isOn: $store.launchAtLoginEnabled)
                             SDRowDivider()
-                            SDToggleRow(
-                                icon: "menubar.rectangle", iconColor: Color.green.opacity(0.18),
-                                title: "Show menu bar helper",
-                                subtitle: "Keep Spotdark accessible via the menu bar as a fallback launcher trigger.",
-                                isOn: $store.showsMenuBarItem
-                            )
+                            SDToggleRow(icon: "menubar.rectangle",
+                                        iconColor: Color.green.opacity(0.18),
+                                        title: "Show menu bar helper",
+                                        subtitle: "Keep Spotdark accessible via the menu bar as a fallback launcher trigger.",
+                                        isOn: $store.showsMenuBarItem)
                             SDRowDivider()
-                            SDToggleRow(
-                                icon: "rectangle.arrowtriangle.2.inward", iconColor: Color.purple.opacity(0.18),
-                                title: "Remember last panel position",
-                                subtitle: "Panel stays centered for now; option reserved for a future preference.",
-                                isOn: $store.remembersPanelPosition
-                            )
+                            SDToggleRow(icon: "rectangle.arrowtriangle.2.inward",
+                                        iconColor: Color.purple.opacity(0.18),
+                                        title: "Remember last panel position",
+                                        subtitle: "Panel stays centered for now; option reserved for a future preference.",
+                                        isOn: $store.remembersPanelPosition)
                         }
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     SDSectionHeader("DATA MANAGEMENT")
                     SDCard {
                         VStack(alignment: .leading, spacing: 10) {
@@ -659,7 +606,7 @@ private struct SDAdvancedPane: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     SDSectionHeader("ABOUT")
                     SDCard {
                         VStack(alignment: .leading, spacing: 6) {
@@ -673,7 +620,7 @@ private struct SDAdvancedPane: View {
                     }
                 }
             }
-            .padding(18)
+            .padding(22)
         }
         .sheet(item: $importPreview) { preview in
             SettingsImportSheet(preview: preview) { strategy in
@@ -721,18 +668,6 @@ private struct SDAdvancedPane: View {
 
 // MARK: - Shared Design Components
 
-private struct SDPaneHeader: View {
-    let title: String
-    let subtitle: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.title2.weight(.semibold))
-            Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
-        }
-    }
-}
-
 struct SDSectionHeader: View {
     let title: String
     init(_ title: String) { self.title = title }
@@ -741,7 +676,7 @@ struct SDSectionHeader: View {
         Text(title)
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.secondary)
-            .tracking(0.3)
+            .tracking(0.4)
     }
 }
 
@@ -760,9 +695,7 @@ struct SDCard<Content: View>: View {
 }
 
 private struct SDRowDivider: View {
-    var body: some View {
-        Divider().padding(.leading, 52)
-    }
+    var body: some View { Divider().padding(.leading, 52) }
 }
 
 struct SDIconBadge: View {
@@ -795,7 +728,7 @@ struct SDKeyBadge: View {
                     .fill(Color.primary.opacity(0.08))
                     .overlay(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.14), lineWidth: 0.5)
+                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
                     )
             )
     }
@@ -805,7 +738,7 @@ private struct SDSelectBadge: View {
     let label: String
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Text(label)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
@@ -820,9 +753,24 @@ private struct SDSelectBadge: View {
                 .fill(Color.primary.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.14), lineWidth: 0.5)
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
                 )
         )
+    }
+}
+
+private struct SDPaneHeader: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.title2.weight(.semibold))
+            Text(subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
@@ -842,9 +790,7 @@ private struct SDToggleRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
-            Toggle("", isOn: $isOn)
-                .toggleStyle(.switch)
-                .labelsHidden()
+            Toggle("", isOn: $isOn).toggleStyle(.switch).labelsHidden()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -993,12 +939,10 @@ private struct SettingsImportSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text(SettingsStrings.importSheetTitle)
-                .font(.title2.weight(.semibold))
+            Text(SettingsStrings.importSheetTitle).font(.title2.weight(.semibold))
 
             if preview.hasConflicts {
                 Text(SettingsStrings.importSheetConflictsHeading).foregroundStyle(.secondary)
-
                 VStack(spacing: 0) {
                     ForEach(Array(preview.conflicts.enumerated()), id: \.offset) { index, conflict in
                         HStack(alignment: .top) {
@@ -1008,19 +952,14 @@ private struct SettingsImportSheet: View {
                             Text(conflict.importedValue).frame(width: 110, alignment: .leading).foregroundStyle(.primary)
                         }
                         .font(.callout)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
+                        .padding(.horizontal, 12).padding(.vertical, 7)
                         .background(Color.primary.opacity(index % 2 == 0 ? 0.04 : 0))
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
 
                 Text(SettingsStrings.importSheetStrategyHeading).foregroundStyle(.secondary)
-
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Button(SettingsStrings.importReplaceAllButton) { onApply(.replaceAll) }.controlSize(.large)
@@ -1041,8 +980,7 @@ private struct SettingsImportSheet: View {
                 Button(SettingsStrings.importCancelButton) { onCancel() }.keyboardShortcut(.cancelAction)
             }
         }
-        .padding(24)
-        .frame(minWidth: 520)
+        .padding(24).frame(minWidth: 520)
     }
 }
 
