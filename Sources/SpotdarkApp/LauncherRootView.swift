@@ -16,20 +16,6 @@ struct LauncherRootView: View {
         .compositingGroup()
         .clipShape(RoundedRectangle(cornerRadius: LauncherPanelMetrics.cornerRadius, style: .continuous))
         .tint(LauncherGlassStyle.accent)
-        // Global keyboard behavior:
-        // - Up/Down: navigate results
-        // - Return: open selected item
-        // - Esc: close
-        .onMoveCommand { direction in
-            switch direction {
-            case .down:
-                store.moveSelection(delta: 1)
-            case .up:
-                store.moveSelection(delta: -1)
-            default:
-                break
-            }
-        }
         .background(defaultActionButton)
         .onExitCommand {
             store.hide()
@@ -42,23 +28,23 @@ struct LauncherRootView: View {
 
     @ViewBuilder
     private var panelContent: some View {
-        if store.isShowingExpandedContent {
-            VStack(spacing: 0) {
-                searchBar
+        VStack(spacing: 0) {
+            searchBar
+                .frame(height: store.isShowingExpandedContent ? LauncherPanelMetrics.searchFieldHeight : LauncherPanelMetrics.collapsedHeight)
 
+            if store.isShowingExpandedContent {
                 Rectangle()
                     .fill(LauncherGlassStyle.divider)
                     .frame(height: 1)
+                    .transition(.opacity.combined(with: .offset(y: -3)))
 
                 bodyContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.launcherExpandedContent)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        } else {
-            searchBar
-                .frame(maxWidth: .infinity)
-                .frame(maxHeight: .infinity, alignment: .center)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.smooth(duration: LauncherPanelMetrics.expandedContentAnimationDuration, extraBounce: 0), value: store.isShowingExpandedContent)
     }
 
     private var searchBar: some View {
@@ -122,7 +108,7 @@ struct LauncherRootView: View {
                         store.performSelectedAction()
                     }
                 )
-                .transition(.opacity)
+                .transition(.launcherContentSwap)
             } else if store.isShowingNoResultsState {
                 expandedFallback(
                     content: AnyView(
@@ -137,8 +123,10 @@ struct LauncherRootView: View {
                         )
                     )
                 )
+                .transition(.launcherContentSwap)
             } else {
                 Color.clear
+                    .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -160,15 +148,25 @@ struct LauncherRootView: View {
     private var bodyContent: some View {
         if store.isShowingExpandedContent {
             resultsList
-                .transition(
-                    .asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.985, anchor: .top)),
-                        removal: .opacity.combined(with: .scale(scale: 0.995, anchor: .top))
-                    )
-                )
         } else {
             Color.clear
                 .allowsHitTesting(false)
         }
+    }
+}
+
+private extension AnyTransition {
+    static var launcherExpandedContent: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .offset(y: -10)),
+            removal: .opacity.combined(with: .offset(y: -4))
+        )
+    }
+
+    static var launcherContentSwap: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .offset(y: 6)),
+            removal: .opacity.combined(with: .offset(y: -4))
+        )
     }
 }

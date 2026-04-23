@@ -24,12 +24,13 @@ enum LauncherPanelMetrics {
     static let compactVerticalOffsetRatio: CGFloat = 0.12
     static let compactVerticalOffsetMaximum: CGFloat = 110
     static let expandedBottomScreenMargin: CGFloat = 16
-    static let panelResizeAnimationDuration: TimeInterval = 0.14
+    static let panelResizeAnimationDuration: TimeInterval = 0.22
     static let panelPresentationDuration: TimeInterval = 0.18
     static let panelDismissalDuration: TimeInterval = 0.14
     static let panelPresentationOffset: CGFloat = 14
-    static let expandedContentAnimationDuration: TimeInterval = 0.16
-    static let contentSwapAnimationDuration: TimeInterval = 0.12
+    static let expandedContentAnimationDuration: TimeInterval = 0.22
+    static let contentSwapAnimationDuration: TimeInterval = 0.18
+    static let resultRowAnimationDuration: TimeInterval = 0.18
     static let selectionScrollAnimationDuration: TimeInterval = 0.14
     static let searchDebounceNanoseconds: UInt64 = 30_000_000
     static let groupedResultsMinimumCount = 5

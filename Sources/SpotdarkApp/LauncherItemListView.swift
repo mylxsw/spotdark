@@ -47,6 +47,7 @@ struct LauncherItemListView: View {
                             }
                             .buttonStyle(.plain)
                             .id(row.index)
+                            .transition(.launcherResultRow)
                             .accessibilityFocused($accessibilityFocusedRowIndex, equals: row.index)
                             .onHover { isHovered in
                                 hoveredRowIndex = isHovered ? row.index : (hoveredRowIndex == row.index ? nil : hoveredRowIndex)
@@ -70,6 +71,7 @@ struct LauncherItemListView: View {
                 .padding(.horizontal, LauncherPanelMetrics.resultsHorizontalPadding)
                 .padding(.top, LauncherPanelMetrics.resultsTopPadding)
                 .padding(.bottom, LauncherPanelMetrics.resultsBottomPadding)
+                .animation(.smooth(duration: LauncherPanelMetrics.resultRowAnimationDuration, extraBounce: 0), value: sections)
             }
             .background(Color.clear)
             .accessibilityElement(children: .contain)
@@ -116,6 +118,15 @@ struct LauncherItemListView: View {
         }
 
         accessibilityFocusedRowIndex = rowIndices.contains(selectedIndex) ? selectedIndex : rowIndices[0]
+    }
+}
+
+private extension AnyTransition {
+    static var launcherResultRow: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.combined(with: .offset(y: 5)),
+            removal: .opacity
+        )
     }
 }
 
