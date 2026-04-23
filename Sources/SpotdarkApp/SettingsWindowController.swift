@@ -16,8 +16,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         w.titlebarSeparatorStyle = .none
         w.titlebarAppearsTransparent = true
         w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        w.setContentSize(NSSize(width: 820, height: 520))
-        w.minSize = NSSize(width: 640, height: 400)
+        w.setContentSize(NSSize(width: 960, height: 640))
+        w.minSize = NSSize(width: 720, height: 480)
         w.center()
         w.delegate = self
         return w
@@ -27,11 +27,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         if let pane {
             SettingsStore.shared.selectedPane = pane
         }
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }
 
     func windowWillClose(_ notification: Notification) {
-        // Nothing to clean up; window stays allocated for reuse.
+        NSApp.setActivationPolicy(.accessory)
     }
 }
