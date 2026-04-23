@@ -14,8 +14,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         w.title = ""
         w.titleVisibility = .hidden
         w.titlebarSeparatorStyle = .none
-        w.styleMask = [.titled, .closable, .miniaturizable]
+        w.titlebarAppearsTransparent = true
+        w.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         w.setContentSize(NSSize(width: 820, height: 520))
+        w.minSize = NSSize(width: 640, height: 400)
         w.center()
         w.delegate = self
         return w

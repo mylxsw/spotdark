@@ -21,7 +21,7 @@ struct SettingsView: View {
                 )
                 .padding(EdgeInsets(top: 12, leading: 8, bottom: 12, trailing: 12))
         }
-        .frame(width: 820, height: 520)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
     }
 
