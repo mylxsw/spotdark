@@ -39,7 +39,11 @@ final class LauncherStore {
     var onPanelHeightChange: ((CGFloat, Bool) -> Void)?
 
     var isShowingResults: Bool {
-        !results.isEmpty
+        !displayedItems.isEmpty
+    }
+
+    var shouldShowLoadingState: Bool {
+        isInitialIndexing && !isShowingResults
     }
 
     var isShowingRecentItems: Bool {
@@ -59,7 +63,16 @@ final class LauncherStore {
     }
 
     var displayedItems: [SearchItem] {
-        results
+        let rankedResults = results.filter {
+            if case .calculator = $0 { return false }
+            return true
+        }
+
+        guard let calculatorItem = liveCalculatorItem else {
+            return rankedResults
+        }
+
+        return [.calculator(calculatorItem)] + rankedResults
     }
 
     var displayedSections: [LauncherItemSection] {
@@ -250,9 +263,8 @@ final class LauncherStore {
         if trimmedQuery.hasPrefix("?") {
             let webQuery = trimmedQuery.dropFirst().trimmingCharacters(in: .whitespaces)
             tasks.cancelFileSearchTask()
-            results = webQuery.isEmpty ? [] : [makeWebSearchItem(query: webQuery)]
+            applySearchResults(webQuery.isEmpty ? [] : [makeWebSearchItem(query: webQuery)], resetSelection: true)
             isSearchPending = false
-            selectedIndex = clampIndex(selectedIndex)
             notifyPanelHeightChange(animated: true)
             return
         }
@@ -266,9 +278,8 @@ final class LauncherStore {
             .map { SearchItem.plugin($0.item) }
         let rankedBaseResults = rankedResults(appResults + pluginResults, query: trimmedQuery)
         let baseResults = calcPrefix + rankedBaseResults
-        results = baseResults.isEmpty ? [makeWebSearchItem(query: trimmedQuery)] : baseResults
+        applySearchResults(baseResults.isEmpty ? [makeWebSearchItem(query: trimmedQuery)] : baseResults, resetSelection: true)
         isSearchPending = false
-        selectedIndex = clampIndex(selectedIndex)
         notifyPanelHeightChange(animated: true)
 
         // Run file search in parallel for queries with at least 2 characters.
@@ -288,11 +299,36 @@ final class LauncherStore {
                 let combined = Array((calcPrefix + rankedResults).prefix(20))
                 await MainActor.run { [weak self] in
                     guard let self, self.trimmedQuery == querySnapshot else { return }
-                    self.results = combined.isEmpty ? [self.makeWebSearchItem(query: querySnapshot)] : combined
-                    self.selectedIndex = self.clampIndex(self.selectedIndex)
+                    self.applySearchResults(
+                        combined.isEmpty ? [self.makeWebSearchItem(query: querySnapshot)] : combined,
+                        resetSelection: false
+                    )
                 }
             }
         })
+    }
+
+    private func applySearchResults(_ newResults: [SearchItem], resetSelection: Bool) {
+        let previouslySelectedItem = currentSelectedItem
+        results = newResults
+
+        guard !results.isEmpty else {
+            selectedIndex = 0
+            return
+        }
+
+        if resetSelection {
+            selectedIndex = 0
+            return
+        }
+
+        if let previouslySelectedItem,
+           let preservedIndex = results.firstIndex(of: previouslySelectedItem) {
+            selectedIndex = preservedIndex
+            return
+        }
+
+        selectedIndex = clampIndex(selectedIndex)
     }
 
     private func makeWebSearchItem(query: String) -> SearchItem {
@@ -356,6 +392,11 @@ final class LauncherStore {
         return min(max(index, 0), displayedItems.count - 1)
     }
 
+    private var currentSelectedItem: SearchItem? {
+        guard selectedIndex >= 0, selectedIndex < displayedItems.count else { return nil }
+        return displayedItems[selectedIndex]
+    }
+
     private func handle(command: CommandItem) {
         switch command.id {
         case "open-settings":
@@ -369,6 +410,10 @@ final class LauncherStore {
 
     private var liveTrimmedQuery: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var liveCalculatorItem: CalculatorItem? {
+        calculator.evaluate(query: liveTrimmedQuery)
     }
 
     private func refreshRecentItems() {
@@ -431,6 +476,7 @@ final class LauncherStore {
             isSearchPending = false
         } else {
             isSearchPending = true
+            selectedIndex = 0
         }
 
         guard oldTrimmedValue.isEmpty != newTrimmedValue.isEmpty else { return }

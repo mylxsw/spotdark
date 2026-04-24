@@ -4,7 +4,8 @@ import Foundation
 enum LauncherPanelMetrics {
     static let width: CGFloat = 800
     static let searchFieldHeight: CGFloat = 52
-    static let collapsedHeight: CGFloat = 64
+    static let searchBarContainerHeight: CGFloat = 64
+    static let collapsedHeight: CGFloat = searchBarContainerHeight
     static let expandedHeight: CGFloat = 680
     static let recentItemsLimit = 5
     static let cornerRadius: CGFloat = 18

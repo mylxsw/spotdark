@@ -23,23 +23,28 @@ public final class ExpressionCalculator: Sendable {
     /// Returns a `CalculatorItem` if `query` is a recognized math expression or unit conversion,
     /// or `nil` if it should be treated as a regular search query.
     public func evaluate(query: String) -> CalculatorItem? {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let trimmed = normalizedCalculatorQuery(query).trimmingCharacters(in: .whitespaces)
         guard trimmed.count >= 2 else { return nil }
         if let result = evaluateUnitConversion(trimmed) { return result }
         return evaluateMath(trimmed)
     }
 }
 
+private func normalizedCalculatorQuery(_ query: String) -> String {
+    let halfWidth = query.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? query
+    return halfWidth
+        .replacingOccurrences(of: "×", with: "*")
+        .replacingOccurrences(of: "÷", with: "/")
+        .replacingOccurrences(of: "−", with: "-")
+        .replacingOccurrences(of: "﹣", with: "-")
+        .replacingOccurrences(of: "－", with: "-")
+}
+
 // MARK: - Math Expression
 
 extension ExpressionCalculator {
     private func evaluateMath(_ input: String) -> CalculatorItem? {
-        let normalized = input
-            .replacingOccurrences(of: "×", with: "*")
-            .replacingOccurrences(of: "÷", with: "/")
-            .replacingOccurrences(of: "−", with: "-")
-
-        guard let tokens = tokenizeMath(normalized), !tokens.isEmpty else { return nil }
+        guard let tokens = tokenizeMath(input), !tokens.isEmpty else { return nil }
 
         // Skip bare numbers — not useful to surface as a calculator result.
         let hasOperator = tokens.contains { if case .op = $0 { return true }; return false }

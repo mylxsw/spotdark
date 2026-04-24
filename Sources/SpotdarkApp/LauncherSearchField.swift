@@ -1,18 +1,30 @@
 import AppKit
 import SwiftUI
 
+final class LauncherTextField: NSTextField {
+    var onTextChange: ((String) -> Void)?
+
+    override func textDidChange(_ notification: Notification) {
+        super.textDidChange(notification)
+        let liveText = (currentEditor() as? NSTextView)?.string ?? stringValue
+        onTextChange?(liveText)
+    }
+}
+
 final class LauncherSearchFieldContainerView: NSView {
-    let textField: NSTextField
+    private static weak var activeView: LauncherSearchFieldContainerView?
+
+    let textField: LauncherTextField
     private var shouldFocusWhenAttached = false
 
     override init(frame frameRect: NSRect) {
-        textField = NSTextField()
+        textField = LauncherTextField()
         super.init(frame: frameRect)
         configure()
     }
 
     required init?(coder: NSCoder) {
-        textField = NSTextField()
+        textField = LauncherTextField()
         super.init(coder: coder)
         configure()
     }
@@ -24,8 +36,22 @@ final class LauncherSearchFieldContainerView: NSView {
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        if window == nil {
+            if Self.activeView === self {
+                Self.activeView = nil
+            }
+        } else {
+            Self.activeView = self
+        }
         guard shouldFocusWhenAttached else { return }
         focusTextField()
+    }
+
+    @discardableResult
+    static func routeUnhandledTextInput(_ text: String) -> Bool {
+        guard let activeView else { return false }
+        activeView.insertUnhandledText(text)
+        return true
     }
 
     func focusTextField() {
@@ -42,6 +68,23 @@ final class LauncherSearchFieldContainerView: NSView {
     func placeCursorAtEnd() {
         guard let editor = window?.fieldEditor(false, for: textField) as? NSTextView else { return }
         editor.selectedRange = NSRange(location: textField.stringValue.utf16.count, length: 0)
+    }
+
+    private func insertUnhandledText(_ text: String) {
+        guard !text.isEmpty else { return }
+        focusTextField()
+
+        if let window {
+            _ = window.makeFirstResponder(textField)
+        }
+
+        if let editor = textField.currentEditor() as? NSTextView {
+            editor.insertText(text, replacementRange: editor.selectedRange())
+            return
+        }
+
+        textField.stringValue.append(text)
+        textField.onTextChange?(textField.stringValue)
     }
 
     private func configure() {
@@ -98,7 +141,10 @@ struct LauncherSearchField: NSViewRepresentable {
         context.coordinator.parent = self
 
         let textField = nsView.textField
-        if textField.stringValue != text {
+        textField.onTextChange = { [weak coordinator = context.coordinator] liveText in
+            coordinator?.textDidChange(liveText)
+        }
+        if textField.currentEditor() == nil, textField.stringValue != text {
             textField.stringValue = text
             nsView.placeCursorAtEnd()
         }
@@ -127,9 +173,14 @@ struct LauncherSearchField: NSViewRepresentable {
             self.parent = parent
         }
 
+        func textDidChange(_ liveText: String) {
+            parent.text = liveText
+        }
+
         func controlTextDidChange(_ notification: Notification) {
             guard let textField = notification.object as? NSTextField else { return }
-            parent.text = textField.stringValue
+            let liveText = (textField.currentEditor() as? NSTextView)?.string ?? textField.stringValue
+            textDidChange(liveText)
         }
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {

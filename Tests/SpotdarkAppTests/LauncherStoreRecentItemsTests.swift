@@ -76,6 +76,28 @@ final class LauncherStoreRecentItemsTests: XCTestCase {
         XCTAssertEqual(store.displayedItems.count, 1)
     }
 
+    func testCalculatorPreviewDoesNotStayHiddenBehindLoadingState() async throws {
+        let store = LauncherStore(
+            commandProvider: CommandRegistry(),
+            indexStream: PendingAppIndexStream(),
+            fileSearchProvider: EmptyFileSearchProvider(),
+            recentItemsProvider: { _ in [] }
+        )
+
+        XCTAssertTrue(store.shouldShowLoadingState)
+
+        store.query = "2+3*4"
+
+        try await waitUntil {
+            guard case .calculator(let calculator) = store.displayedItems.first else { return false }
+            return calculator.displayResult == "14"
+        }
+
+        XCTAssertTrue(store.isInitialIndexing)
+        XCTAssertTrue(store.isShowingResults)
+        XCTAssertFalse(store.shouldShowLoadingState, "Live calculator results should be shown even before app indexing finishes")
+    }
+
     func testFallbackTextInputUpdatesQueryBeforeFieldFocus() async throws {
         let store = LauncherStore(
             commandProvider: CommandRegistry(),
@@ -187,6 +209,172 @@ final class LauncherStoreRecentItemsTests: XCTestCase {
         XCTAssertEqual(file.name, "safe.txt")
     }
 
+    func testMathExpressionResetsSelectionToTopCalculatorResult() async throws {
+        let store = LauncherStore(
+            commandProvider: CommandRegistry(commands: [
+                CommandItem(id: "expression-help", title: "1+2 command", keywords: ["1+2"])
+            ]),
+            indexStream: StubAppIndexStream(items: [
+                .initial([
+                    IndexedApplication(bundleURL: URL(fileURLWithPath: "/Applications/Calendar.app")),
+                    IndexedApplication(bundleURL: URL(fileURLWithPath: "/Applications/Calculator.app"))
+                ])
+            ]),
+            fileSearchProvider: EmptyFileSearchProvider(),
+            recentItemsProvider: { _ in [] }
+        )
+
+        try await waitUntil { !store.isInitialIndexing }
+
+        store.query = "ca"
+
+        try await waitUntil {
+            store.displayedItems.count == 2
+        }
+
+        store.moveSelection(delta: 1)
+        XCTAssertEqual(store.selectedIndex, 1)
+
+        store.query = "1+2"
+
+        try await waitUntil {
+            guard store.displayedItems.count == 2,
+                  case .calculator(let calculator) = store.displayedItems.first else {
+                return false
+            }
+            return calculator.displayResult == "3"
+        }
+
+        guard case .calculator(let calculator) = store.displayedItems.first else {
+            return XCTFail("Expected the calculator preview to be the first result")
+        }
+
+        XCTAssertEqual(calculator.displayResult, "3")
+        XCTAssertEqual(store.selectedIndex, 0, "A new query should reselect the top live result")
+    }
+
+    func testFullWidthMathExpressionStillPinsCalculatorAboveOtherResults() async throws {
+        let store = LauncherStore(
+            commandProvider: CommandRegistry(commands: [
+                CommandItem(id: "fullwidth-expression", title: "32+24 reference", keywords: ["32+24"])
+            ]),
+            indexStream: StubAppIndexStream(items: [.initial([])]),
+            fileSearchProvider: StubFileSearchProvider(items: [
+                FileItem(name: "232", path: URL(fileURLWithPath: "/tmp/232"), contentType: nil, modificationDate: nil)
+            ]),
+            recentItemsProvider: { _ in [] }
+        )
+
+        try await waitUntil { !store.isInitialIndexing }
+
+        store.query = "３２＋２４"
+
+        try await waitUntil {
+            guard case .calculator(let calculator) = store.displayedItems.first else { return false }
+            return calculator.displayResult == "56"
+        }
+
+        guard case .calculator(let calculator) = store.displayedItems.first else {
+            return XCTFail("Expected calculator result to stay pinned above search matches")
+        }
+
+        XCTAssertEqual(calculator.displayResult, "56")
+        XCTAssertEqual(store.selectedIndex, 0)
+    }
+
+    func testTypingFormulaManuallyShowsCalculatorBeforeDebouncedSearchRefreshes() async throws {
+        let store = LauncherStore(
+            commandProvider: CommandRegistry(),
+            indexStream: StubAppIndexStream(items: [.initial([])]),
+            fileSearchProvider: StubFileSearchProvider(items: [
+                FileItem(name: "232", path: URL(fileURLWithPath: "/tmp/232"), contentType: nil, modificationDate: nil)
+            ]),
+            recentItemsProvider: { _ in [] }
+        )
+
+        try await waitUntil { !store.isInitialIndexing }
+
+        store.query = "32"
+
+        try await waitUntil {
+            guard case .file(let file) = store.displayedItems.first else { return false }
+            return file.name == "232"
+        }
+
+        store.query = "32+"
+        store.query = "32+2"
+        store.query = "32+24"
+
+        guard case .calculator(let calculator) = store.displayedItems.first else {
+            return XCTFail("Expected manual typing to surface the live calculator result immediately")
+        }
+
+        XCTAssertEqual(calculator.displayResult, "56")
+        XCTAssertEqual(store.selectedIndex, 0)
+    }
+
+    func testFileSearchRefreshPreservesSelectedItemForSameQuery() async throws {
+        let store = LauncherStore(
+            commandProvider: CommandRegistry(),
+            indexStream: StubAppIndexStream(items: [
+                .initial([
+                    IndexedApplication(bundleURL: URL(fileURLWithPath: "/Applications/Safe Zone.app")),
+                    IndexedApplication(bundleURL: URL(fileURLWithPath: "/Applications/My Safe App.app"))
+                ])
+            ]),
+            fileSearchProvider: DelayedFileSearchProvider(
+                delayNanoseconds: 80_000_000,
+                items: [
+                    FileItem(name: "safe.txt", path: URL(fileURLWithPath: "/tmp/safe.txt"), contentType: nil, modificationDate: nil)
+                ]
+            ),
+            recentItemsProvider: { _ in [] }
+        )
+
+        try await waitUntil { !store.isInitialIndexing }
+
+        store.query = "safe"
+
+        try await waitUntil {
+            store.displayedItems.count == 2
+        }
+
+        store.moveSelection(delta: 1)
+        let initiallySelectedItem = store.displayedItems[store.selectedIndex]
+
+        try await waitUntil {
+            store.displayedItems.count == 3
+        }
+
+        XCTAssertEqual(store.displayedItems[store.selectedIndex], initiallySelectedItem)
+        XCTAssertEqual(store.selectedIndex, 2, "Async refresh should keep the user's explicit selection on the same item")
+    }
+
+    func testMathExpressionPreviewUpdatesAsUserTypes() async throws {
+        let store = LauncherStore(
+            commandProvider: CommandRegistry(),
+            indexStream: StubAppIndexStream(items: [.initial([])]),
+            fileSearchProvider: EmptyFileSearchProvider(),
+            recentItemsProvider: { _ in [] }
+        )
+
+        try await waitUntil { !store.isInitialIndexing }
+
+        store.query = "12/3"
+
+        try await waitUntil {
+            guard case .calculator(let calculator) = store.displayedItems.first else { return false }
+            return calculator.displayResult == "4"
+        }
+
+        store.query = "12/4"
+
+        try await waitUntil {
+            guard case .calculator(let calculator) = store.displayedItems.first else { return false }
+            return calculator.displayResult == "3"
+        }
+    }
+
     func testClearingQueryWithoutRecentItemsCollapsesPanel() async throws {
         let store = LauncherStore(
             commandProvider: CommandRegistry(),
@@ -241,6 +429,12 @@ private struct StubAppIndexStream: AppIndexStreaming {
     }
 }
 
+private struct PendingAppIndexStream: AppIndexStreaming {
+    func deltas() -> AsyncStream<AppIndexDelta> {
+        AsyncStream { _ in }
+    }
+}
+
 private struct EmptyFileSearchProvider: FileSearchProviding {
     func search(query: String) -> AsyncStream<[FileItem]> {
         AsyncStream { continuation in
@@ -258,6 +452,23 @@ private struct StubFileSearchProvider: FileSearchProviding {
         return AsyncStream { continuation in
             continuation.yield(items)
             continuation.finish()
+        }
+    }
+}
+
+private struct DelayedFileSearchProvider: FileSearchProviding {
+    let delayNanoseconds: UInt64
+    let items: [FileItem]
+
+    func search(query: String) -> AsyncStream<[FileItem]> {
+        let delayNanoseconds = self.delayNanoseconds
+        let items = self.items
+        return AsyncStream { continuation in
+            Task {
+                try? await Task.sleep(nanoseconds: delayNanoseconds)
+                continuation.yield(items)
+                continuation.finish()
+            }
         }
     }
 }

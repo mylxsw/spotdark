@@ -30,7 +30,7 @@ struct LauncherRootView: View {
     private var panelContent: some View {
         VStack(spacing: 0) {
             searchBar
-                .frame(height: store.isShowingExpandedContent ? LauncherPanelMetrics.searchFieldHeight : LauncherPanelMetrics.collapsedHeight)
+                .frame(height: LauncherPanelMetrics.searchBarContainerHeight)
 
             if store.isShowingExpandedContent {
                 Rectangle()
@@ -94,9 +94,7 @@ struct LauncherRootView: View {
 
     private var resultsList: some View {
         Group {
-            if store.isInitialIndexing {
-                expandedFallback(content: AnyView(LauncherLoadingStateView()))
-            } else if store.isShowingResults {
+            if store.isShowingResults {
                 LauncherItemListView(
                     sections: store.displayedSections,
                     query: store.trimmedQuery,
@@ -109,6 +107,8 @@ struct LauncherRootView: View {
                     }
                 )
                 .transition(.launcherContentSwap)
+            } else if store.shouldShowLoadingState {
+                expandedFallback(content: AnyView(LauncherLoadingStateView()))
             } else if store.isShowingNoResultsState {
                 expandedFallback(
                     content: AnyView(

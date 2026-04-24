@@ -133,6 +133,7 @@ final class LauncherPanelController: NSObject {
         panel.delegate = self
         panel.onUnhandledTextInput = { [weak store] text in
             Task { @MainActor [weak store] in
+                guard !LauncherSearchFieldContainerView.routeUnhandledTextInput(text) else { return }
                 store?.insertTextInput(text)
             }
         }
